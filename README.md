@@ -9,16 +9,20 @@ An end-to-end machine-learning MVP for estimating land value from structured pro
 - train/test validation
 - Random Forest regression
 - MAE and R² metrics
-- persisted model artifact
+- persisted model artifacts
 - interactive Streamlit predictions
 - FastAPI model serving
 - automated tests
 - cross-project API integration with Land Scout Lite
-- official county GIS/sales-data ingestion
+- official Peoria County GIS/sales-data ingestion
+- real-sales cleaning and profiling
+- chronological holdout validation for a research baseline
 
-## Current model features
+## Two model tracks
 
-The starter model currently uses:
+### Synthetic demo model
+
+The existing API demo model uses:
 
 - `acres`
 - `distance_to_city_miles`
@@ -26,28 +30,47 @@ The starter model currently uses:
 - `zoning_score`
 - `utilities`
 
-The production direction is to replace the synthetic training set with verified Central Illinois parcel and comparable-sales data as enough compatible features are collected.
+It remains useful for demonstrating the end-to-end API workflow with Land Scout.
 
-## Peoria County official data connector
+### Peoria County real-data research baseline
 
-The project now includes a connector for Peoria County's public ArcGIS services. It retrieves only valuation-research fields and deliberately excludes owner names and mailing addresses.
+A separate research pipeline now works from official public Peoria County parcel/sale records. It uses only valuation-oriented fields and deliberately excludes owner names and mailing addresses.
 
-The parcel feed includes fields such as parcel ID, property class, city, ZIP, acreage, land assessment, total assessment, latest sale price, and sale date. A separate sales-history feed provides recorded parcel sale price/date history.
+The first baseline features are:
 
-Download the current public data locally:
+- acreage
+- land assessment
+- total assessment
+- sale year
+- property class
+- city
+- ZIP code
+
+The baseline uses a chronological holdout instead of a random split so newer transactions are tested against a model trained on older transactions.
+
+## Peoria County official data workflow
+
+Download the public parcel/sales feeds:
 
 ```bash
 python scripts/fetch_peoria_data.py
 ```
 
-Files are written under `data/official/` and ignored by Git so downloaded county datasets are not copied into the repository.
+Profile and clean the sale records:
 
-Official source endpoints used by the connector:
+```bash
+python scripts/profile_peoria_sales.py
+```
 
-- Peoria County Cadastral Parcel FeatureServer
-- Peoria County GIS Sales History table
+This produces local research outputs under `artifacts/real_data/`, including a property-class profile. Property-class codes are summarized but are **not yet assumed** to mean vacant land, farmland, or another land category until their meanings are independently verified.
 
-These feeds establish the first real-data layer for the Central Illinois model. The current prediction model remains a development model until the feature engineering and validation pipeline is retrained on suitable real transactions.
+Train the first real-data baseline:
+
+```bash
+python train_peoria_baseline.py
+```
+
+The real baseline is saved separately under `artifacts/peoria_baseline/`. It does not automatically replace the synthetic API model.
 
 ## Run locally
 
@@ -76,18 +99,6 @@ API endpoints:
 - `GET /health`
 - `POST /predict`
 
-Example request:
-
-```json
-{
-  "acres": 5.0,
-  "distance_to_city_miles": 12.0,
-  "road_frontage_ft": 250.0,
-  "zoning_score": 3,
-  "utilities": 1
-}
-```
-
 Run tests:
 
 ```bash
@@ -96,19 +107,20 @@ pytest
 
 ## Land Scout integration
 
-Land Scout Lite sends deal features to this API and receives `estimated_value`. Land Scout now handles Central Illinois market filtering and deal ranking while this repository owns valuation and real-data ingestion.
+Land Scout Lite sends deal features to this API and receives `estimated_value`. Land Scout handles Central Illinois filtering and opportunity ranking while this repository owns valuation and real-data ingestion.
 
 ## Important limitation
 
-The current trained model still uses synthetic data and exists to demonstrate the ML workflow. The newly added Peoria County feeds are real public data, but they have not yet replaced the synthetic model because the real-data feature engineering and validation work is still in progress. This project is not an appraisal service and should not be used to make real property valuation decisions without proper validation.
+The public Peoria County feeds are real data, but the real-data baseline is still a research model. It has not yet been validated as appraisal-grade or investment-grade and should not be used as a substitute for professional valuation or due diligence. The production API continues to use the synthetic demonstration model until the real-data pipeline passes stronger validation.
 
 ## Next steps
 
-- profile and clean Peoria County sale records
-- identify land/vacant/agricultural property-class codes
-- engineer comparable-sale features from parcel and sales history
+- verify Peoria County property-class definitions and isolate land-only transaction classes
+- join deeper sales history to parcel records and remove invalid/non-market transactions where identifiable
+- add comparable-sale, recency, and geographic features
 - add Tazewell, Woodford, Fulton, Knox, and other Central Illinois county sources
-- add location, taxes, zoning, flood, road-access, and utility features
-- compare multiple model families
+- add taxes, zoning, flood, road-access, and utility data
+- compare baseline models with time-based validation
 - track experiments with MLflow
-- deploy the API to a hosted service
+- expose model/data version through the API
+- deploy the validated API for Land Scout
