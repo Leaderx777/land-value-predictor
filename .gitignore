@@ -3,4 +3,5 @@ __pycache__/
 .pytest_cache/
 artifacts/*.joblib
 artifacts/*.json
+data/official/*.csv
 .DS_Store
