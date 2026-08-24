@@ -22,31 +22,13 @@ An end-to-end machine-learning MVP for estimating land value from structured pro
 
 ### Synthetic demo model
 
-The existing API demo model uses:
-
-- `acres`
-- `distance_to_city_miles`
-- `road_frontage_ft`
-- `zoning_score`
-- `utilities`
-
-It remains useful for demonstrating the end-to-end API workflow with Land Scout.
+The existing API demo model uses acreage, distance to city, road frontage, zoning score, and utilities. It remains useful for demonstrating the end-to-end API workflow with Land Scout.
 
 ### Peoria County real-data research baseline
 
-A separate research pipeline now works from official public Peoria County parcel/sale records. It uses only valuation-oriented fields and deliberately excludes owner names and mailing addresses.
+A separate research pipeline works from official public Peoria County parcel/sale records. It uses valuation-oriented fields and deliberately excludes owner names and mailing addresses.
 
-The first baseline features are:
-
-- acreage
-- land assessment
-- total assessment
-- sale year
-- property class
-- city
-- ZIP code
-
-The baseline uses a chronological holdout instead of a random split so newer transactions are tested against a model trained on older transactions.
+The first baseline features are acreage, land assessment, total assessment, sale year, property class, city, and ZIP code. The baseline uses a chronological holdout so newer transactions are tested against a model trained on older transactions.
 
 ## Peoria County official data workflow
 
@@ -62,7 +44,13 @@ Profile and clean the sale records:
 python scripts/profile_peoria_sales.py
 ```
 
-This produces local research outputs under `artifacts/real_data/`, including a property-class profile. Property-class codes are summarized but are **not yet assumed** to mean vacant land, farmland, or another land category until their meanings are independently verified.
+Build a property-class verification template:
+
+```bash
+python scripts/build_peoria_class_mapping.py
+```
+
+The county's official Board of Review materials identify these broad property categories: Residential, Residential Vacant Land, Condo, Duplex, Commercial/Industrial, Farm Improved, and Farmland Only. The GIS tax-year parcel layer also exposes `AgParcelFlag`, `PropertyClass`, and `LandUse` fields. The project does not guess how raw class codes map to those categories; observed codes are exported to a reviewable mapping file and must be verified before any class is treated as land-only.
 
 Train the first real-data baseline:
 
@@ -115,7 +103,9 @@ The public Peoria County feeds are real data, but the real-data baseline is stil
 
 ## Next steps
 
-- verify Peoria County property-class definitions and isolate land-only transaction classes
+- verify the observed Peoria raw property-class values against county definitions
+- isolate Residential Vacant Land and Farmland Only transactions only after verification
+- evaluate the tax-year parcel layer's `AgParcelFlag` and `LandUse` as enrichment features
 - join deeper sales history to parcel records and remove invalid/non-market transactions where identifiable
 - add comparable-sale, recency, and geographic features
 - add Tazewell, Woodford, Fulton, Knox, and other Central Illinois county sources
