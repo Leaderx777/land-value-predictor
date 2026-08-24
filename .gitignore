@@ -3,5 +3,7 @@ __pycache__/
 .pytest_cache/
 artifacts/*.joblib
 artifacts/*.json
+artifacts/real_data/
+artifacts/peoria_baseline/
 data/official/*.csv
 .DS_Store
