@@ -49,6 +49,12 @@ def main() -> None:
 
     df = pd.read_csv(INPUT)
     mapping = build_mapping(df)
+    if OUTPUT.exists():
+        existing = pd.read_csv(OUTPUT, dtype="string").fillna("")
+        # Refuse to erase work entered into the old generated file.
+        evidence_columns = ["verified_category", "land_only", "verification_source", "notes"]
+        if any(existing[c].str.strip().ne("").any() for c in evidence_columns):
+            raise SystemExit("Existing mapping contains review work. Preserve it in config before regenerating.")
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     mapping.to_csv(OUTPUT, index=False)
 
