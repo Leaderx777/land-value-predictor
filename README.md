@@ -146,4 +146,18 @@ The analyzer sidebar independently enables/disables maximum purchase price, upfr
 
 Changing sidebar limits re-screens the last submitted deal and its downside scenarios. The rule table identifies each failure, and settings can be downloaded as JSON. Peak cash includes the upfront requirement even when a same-month resale offsets it. Regular monthly limits exclude balloon amounts; balloon funding is covered by the separate peak-cash check and warning.
 
-These controls evaluate entered deals and export criteria; they do not implement a live nationwide listing feed. Passing a rule set is arithmetic screening, not verified market value or due diligence. With every limit disabled no pass/fail judgment is issued.
+These controls evaluate entered deals and export criteria. The Property Search page applies them to bounded RentCast batches or CSV intake. Passing a rule set is arithmetic screening, not verified market value or due diligence. With every limit disabled no pass/fail judgment is issued.
+
+## Nationwide listing intake
+
+Open **Property Search** from the calculator sidebar. It reuses the enabled price, state and property-type limits; cash limits are never sent as asking-price ceilings.
+
+- **Live RentCast:** enter a key locally or set `RENTCAST_API_KEY`. Choose rows per request (1–500) and requests per click (1–51). A resumable state/offset cursor preserves progress. Results report sampled pages, errors and whether traversal of selected states has finished. Changing states, price ceiling or page size resets the scan. No background calls or automatic retries run.
+- **CSV upload:** import permitted listings for any supported calculator property type, including commercial types absent from RentCast. Download the blank template or turn retrieved listings into an underwriting worksheet, fill it, then re-upload. Rates and percentage costs in CSV use decimals, e.g. `0.08` for 8%.
+- Listings with inactive status, missing facts, or last-seen dates older than seven days (or in the future) cannot pass underwriting. Source activity is not direct seller confirmation.
+- Listing price may seed a proposed purchase price. Resale value, costs and financing are never filled in automatically. Every financial input must be explicit, including zero costs. Sale-value/cost source URLs and financed-purchase source URLs are required for batch calculations. The source text still needs independent review.
+- Results distinguish outside listing limits, missing underwriting, invalid scenarios, failed entered limits, and passed entered limits. Passing entered limits is not a buy recommendation, verified comparability, or verified title/buildability. No automated market-demand claim is made.
+
+Official API references: [sale listings](https://developers.rentcast.io/reference/sale-listings) and [coverage](https://developers.rentcast.io/reference/property-listings). RentCast supplies residential listings, apartments and some land, with no office/retail/industrial listing coverage. CSV intake fills the interface gap; it does not create data coverage where no source has been supplied.
+
+No live API call has been validated in this workspace because no API key is configured. Automated tests use explicitly fictional fixtures to check paging, request bounds, errors, stale/inactive rejection and financial-input gates. Do not commit keys or private property exports.

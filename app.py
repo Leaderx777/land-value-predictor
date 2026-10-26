@@ -35,8 +35,9 @@ with st.sidebar:
                     int(max_months) if use_months else None,
                     tuple(chosen_states) if use_states else None,
                     tuple(chosen_types) if use_types else None, financing_filter)
+    st.session_state["active_limits"] = limits.to_dict()
     st.download_button("Save limits as JSON", json.dumps(limits.to_dict(), indent=2), "property-search-limits.json", "application/json")
-    st.caption("These rules screen the deal you enter. This app does not yet retrieve live nationwide listings.")
+    st.page_link("pages/1_Property_Search.py", label="Search listings / upload properties")
 st.info("Enter a resale price supported by closed comparable sales. This calculator does not validate market value.")
 with st.form("deal"):
     buy, sell = st.columns(2)
