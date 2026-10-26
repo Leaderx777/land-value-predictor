@@ -28,33 +28,34 @@ The existing API demo model uses acreage, distance to city, road frontage, zonin
 
 A separate research pipeline works from official public Peoria County parcel/sale records. It uses valuation-oriented fields and deliberately excludes owner names and mailing addresses.
 
-The first baseline features are acreage, land assessment, total assessment, sale year, property class, city, and ZIP code. The baseline uses a chronological holdout so newer transactions are tested against a model trained on older transactions.
+The gated research baseline uses verified acreage, latitude, longitude, and land category. Current assessments are excluded because their availability at historical sale dates is unproven. Separate training, calibration, and test windows keep date ties together and purge repeat parcels across windows. Earlier nearby comparable sales and a median price-per-acre baseline are evaluated alongside the Random Forest.
 
 ## Peoria County official data workflow
 
 Download the public parcel/sales feeds:
 
 ```bash
-python scripts/fetch_peoria_data.py
+python -m scripts.fetch_peoria_data
 ```
 
 Profile and clean the sale records:
 
 ```bash
-python scripts/profile_peoria_sales.py
+python -m scripts.profile_peoria_sales
 ```
 
 Build a property-class verification template:
 
 ```bash
-python scripts/build_peoria_class_mapping.py
+python -m scripts.build_peoria_class_mapping
 ```
 
 The county's official Board of Review materials identify these broad property categories: Residential, Residential Vacant Land, Condo, Duplex, Commercial/Industrial, Farm Improved, and Farmland Only. The GIS tax-year parcel layer also exposes `AgParcelFlag`, `PropertyClass`, and `LandUse` fields. The project does not guess how raw class codes map to those categories; observed codes are exported to a reviewable mapping file and must be verified before any class is treated as land-only.
 
-Train the first real-data baseline:
+Build the evidence-gated land-only cohort and evaluate it:
 
 ```bash
+python -m scripts.build_peoria_land_sales
 python train_peoria_baseline.py
 ```
 
@@ -107,10 +108,22 @@ The public Peoria County feeds are real data, but the real-data baseline is stil
 - isolate Residential Vacant Land and Farmland Only transactions only after verification
 - evaluate the tax-year parcel layer's `AgParcelFlag` and `LandUse` as enrichment features
 - join deeper sales history to parcel records and remove invalid/non-market transactions where identifiable
-- add comparable-sale, recency, and geographic features
+- enrich the initial comparable-sale/location evaluation with verified zoning, access, and land-use features
 - add Tazewell, Woodford, Fulton, Knox, and other Central Illinois county sources
 - add taxes, zoning, flood, road-access, and utility data
 - compare baseline models with time-based validation
 - track experiments with MLflow
 - expose model/data version through the API
 - deploy the validated API for Land Scout
+
+## Evidence gate and readiness
+
+See [the validation guide](docs/VALIDATION.md) for evidence requirements, commands, and current blockers. A model is never automatically approved for investment use.
+
+- `config/peoria_property_classes.csv` is an intentionally empty, tracked evidence table. Do not invent code definitions.
+- `data/review/peoria_transaction_reviews.csv` holds independently reviewed transaction evidence and is ignored by Git.
+- Generated mapping inventories and review templates never replace reviewed evidence.
+- Missing evidence excludes transactions. A zero-row cohort blocks training, writes a reason to `artifacts/peoria_baseline/metrics.json`, and removes any stale research model.
+- Test predictions abstain when fewer than three comparable parcels support a subject or its category/acreage is outside training support.
+- Prediction ranges use a separate calibration window. Their actual later-sale coverage and width are reported; nominal coverage is not a guarantee under market changes.
+- The production API remains a synthetic demonstration. No research model is promoted by this pipeline.

@@ -2,17 +2,6 @@ name: peoria-research
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/peoria-research.yml"
-      - "sources/peoria_county.py"
-      - "scripts/fetch_peoria_data.py"
-      - "scripts/profile_peoria_sales.py"
-      - "scripts/build_peoria_class_mapping.py"
-      - "real_data.py"
-      - "train_peoria_baseline.py"
-      - "requirements.txt"
 
 jobs:
   research:
@@ -26,14 +15,18 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: pip install -r requirements.txt
       - name: Fetch official Peoria County data
-        run: python scripts/fetch_peoria_data.py
+        run: python -m scripts.fetch_peoria_data
       - name: Profile and clean sales
-        run: python scripts/profile_peoria_sales.py
+        run: python -m scripts.profile_peoria_sales
       - name: Build property-class mapping template
-        run: python scripts/build_peoria_class_mapping.py
+        run: python -m scripts.build_peoria_class_mapping
+      - run: python -m pytest -q
+      - name: Build evidence-gated land cohort
+        run: python -m scripts.build_peoria_land_sales
       - name: Train chronological research baseline
         run: python train_peoria_baseline.py
       - name: Upload research summaries
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: peoria-research-results
@@ -41,5 +34,6 @@ jobs:
             artifacts/real_data/peoria_property_class_profile.csv
             artifacts/real_data/peoria_property_class_mapping.csv
             artifacts/peoria_baseline/metrics.json
+            artifacts/verified_land/audit.json
           if-no-files-found: error
           retention-days: 14

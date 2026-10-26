@@ -6,4 +6,6 @@ artifacts/*.json
 artifacts/real_data/
 artifacts/peoria_baseline/
 data/official/*.csv
+data/review/
+artifacts/verified_land/
 .DS_Store
