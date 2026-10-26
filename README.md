@@ -71,7 +71,7 @@ pip install -r requirements.txt
 python train.py
 ```
 
-Run the standalone Streamlit app:
+Run the personal cash-resale deal analyzer:
 
 ```bash
 streamlit run app.py
@@ -127,3 +127,15 @@ See [the validation guide](docs/VALIDATION.md) for evidence requirements, comman
 - Test predictions abstain when fewer than three comparable parcels support a subject or its category/acreage is outside training support.
 - Prediction ranges use a separate calibration window. Their actual later-sale coverage and width are reported; nominal coverage is not a guarantee under market changes.
 - The production API remains a synthetic demonstration. No research model is promoted by this pipeline.
+
+## Personal ROI and cash-resale calculator
+
+The Streamlit app now calculates a cash resale after a cash or seller-financed purchase. It does not offer financing to the resale buyer and does not require a trained model. Enter purchase/resale prices, costs, holding time, and any purchase-note terms.
+
+- Net project ROI is profit divided by all deal costs, including the full purchase price, interest, buying/holding/selling costs; before income tax and per deal, not annualized.
+- The editable 30% target is a proposed screening hurdle, not a measured local market average or promised return.
+- Purchase-note payments, balloons and remaining payoff at resale are included without counting principal twice. A pre-resale balloon requires cash, not assumed refinancing.
+- Break-even resale, peak funding, monthly cash flows and lower-price/delayed-resale scenarios are reported.
+- Zero cost defaults are unfilled assumptions, not verified zero costs. Resale valuation, title, access/buildability and loan payoff terms require independent confirmation. Passing the ROI target only verifies entered arithmetic.
+
+The research valuation pipeline remains separate. API predictions still use the synthetic demo.
