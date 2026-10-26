@@ -139,3 +139,11 @@ The Streamlit app now calculates a cash resale after a cash or seller-financed p
 - Zero cost defaults are unfilled assumptions, not verified zero costs. Resale valuation, title, access/buildability and loan payoff terms require independent confirmation. Passing the ROI target only verifies entered arithmetic.
 
 The research valuation pipeline remains separate. API predictions still use the synthetic demo.
+
+## Adjustable deal limits
+
+The analyzer sidebar independently enables/disables maximum purchase price, upfront cash (down payment + buying costs + improvements), peak deal cash, regular monthly note payment plus holding costs, minimum net project ROI, minimum profit, holding time, states, property types, and cash/seller-financed purchase requirements. Price has no default dollar ceiling. Zero is a real cap when enabled; an off switch disables a rule. Nationwide/all property types are the initial scope. The 30% ROI hurdle can be edited or disabled.
+
+Changing sidebar limits re-screens the last submitted deal and its downside scenarios. The rule table identifies each failure, and settings can be downloaded as JSON. Peak cash includes the upfront requirement even when a same-month resale offsets it. Regular monthly limits exclude balloon amounts; balloon funding is covered by the separate peak-cash check and warning.
+
+These controls evaluate entered deals and export criteria; they do not implement a live nationwide listing feed. Passing a rule set is arithmetic screening, not verified market value or due diligence. With every limit disabled no pass/fail judgment is issued.

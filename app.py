@@ -1,19 +1,49 @@
 """Personal cash-resale land analyzer. Resale assumptions are entered, never invented."""
 from dataclasses import replace
+import json
 
 import pandas as pd
 import streamlit as st
 
 from deal_finance import Deal
+from deal_limits import Limits, PROPERTY_TYPES, STATES
 
-st.set_page_config(page_title="Personal Land Deal Analyzer", layout="wide")
-st.title("Personal Land Deal Analyzer")
+st.set_page_config(page_title="Personal Property Deal Analyzer", layout="wide")
+st.title("Personal Property Deal Analyzer")
 st.caption("Buy with cash or seller financing. Sell for cash. ROI is per deal, before income tax.")
+with st.sidebar:
+    st.header("Your limits")
+    st.caption("Enable only the limits you want. Property price and cash available are separate.")
+    def optional_limit(label, default=0., enabled=False):
+        use = st.checkbox("Limit " + label, value=enabled, key="use_" + label)
+        value = st.number_input(label, min_value=0., value=float(default), disabled=not use, key="limit_" + label)
+        return value if use else None
+    max_price = optional_limit("Purchase price ($)")
+    max_upfront = optional_limit("Upfront cash ($)")
+    max_total = optional_limit("Peak deal cash ($)")
+    max_monthly = optional_limit("Monthly payment + holding ($)")
+    min_roi = optional_limit("Minimum net ROI (%)", 30., True)
+    min_profit = optional_limit("Minimum net profit ($)")
+    use_months = st.checkbox("Limit holding time", key="use_months")
+    max_months = st.number_input("Maximum holding months", min_value=0, value=12, disabled=not use_months)
+    use_states = st.checkbox("Limit states", key="use_states")
+    chosen_states = st.multiselect("Allowed states", STATES, disabled=not use_states)
+    use_types = st.checkbox("Limit property types", key="use_types")
+    chosen_types = st.multiselect("Allowed property types", PROPERTY_TYPES, default=list(PROPERTY_TYPES), disabled=not use_types)
+    financing_filter = st.selectbox("Purchase financing allowed", ["Either", "Cash purchase", "Seller-financed purchase"])
+    limits = Limits(max_price, max_upfront, max_total, max_monthly, min_roi, min_profit,
+                    int(max_months) if use_months else None,
+                    tuple(chosen_states) if use_states else None,
+                    tuple(chosen_types) if use_types else None, financing_filter)
+    st.download_button("Save limits as JSON", json.dumps(limits.to_dict(), indent=2), "property-search-limits.json", "application/json")
+    st.caption("These rules screen the deal you enter. This app does not yet retrieve live nationwide listings.")
 st.info("Enter a resale price supported by closed comparable sales. This calculator does not validate market value.")
 with st.form("deal"):
     buy, sell = st.columns(2)
     with buy:
         st.subheader("Purchase")
+        property_type = st.selectbox("Property type", PROPERTY_TYPES)
+        state = st.selectbox("Property state", STATES, index=STATES.index("IL"))
         price = st.number_input("Purchase price ($)", min_value=0., value=0., step=500.)
         financed = st.checkbox("Use seller financing for my purchase")
         down = st.number_input("Purchase down payment ($; used only if financed)", min_value=0., value=0., step=100.)
@@ -29,10 +59,11 @@ with st.form("deal"):
         holding = st.number_input("Monthly taxes, insurance and maintenance ($)", min_value=0., value=0.)
         selling_pct = st.number_input("Selling costs (% of resale price)", min_value=0., max_value=100., value=0.)
         selling_fixed = st.number_input("Other selling costs and payoff fees ($)", min_value=0., value=0.)
-        target = st.number_input("Target net project ROI (%)", min_value=0., value=30., step=5.)
-        cash_limit = st.number_input("Available deal cash ($; 0 = not checked)", min_value=0., value=0.)
+
     submitted = st.form_submit_button("Analyze deal", type="primary")
 if submitted:
+    st.session_state["has_analyzed_deal"] = True
+if st.session_state.get("has_analyzed_deal", False):
     deal = Deal(price, down if financed else price, rate / 100, int(term), int(balloon), resale,
                 int(months), closing, improvements, selling_pct / 100, selling_fixed, holding)
     try:
@@ -45,12 +76,22 @@ if submitted:
     b.metric("Net project ROI", f"{result['project_roi_pct']:.1f}%")
     c.metric("Break-even cash resale", f"${result['break_even_resale']:,.2f}" if result['break_even_resale'] is not None else "No price-only break-even")
     d.metric("Peak additional cash required", f"${result['peak_funding']:,.2f}")
-    cash_ok = not cash_limit or result['peak_funding'] <= cash_limit
-    passes = result['project_roi_pct'] >= target and result['profit'] > 0 and cash_ok
-    if passes:
-        st.success("Passes your entered ROI and cash limits under these assumptions. Market value and property due diligence remain unverified.")
+    checks = limits.check(deal, result, state=state, property_type=property_type)
+    passes = all(row['passed'] for row in checks)
+    if not checks:
+        st.info("All limits are off. No pass/fail assessment is applied.")
+    elif passes:
+        st.success("Passes your enabled limits under these assumptions. Market value and property due diligence remain unverified.")
     else:
-        st.warning("Does not pass your entered ROI/cash limits.")
+        st.warning("Does not pass all enabled limits. See the failed rules below.")
+    if result['profit'] <= 0:
+        st.warning("This scenario has no positive net profit.")
+    if checks:
+        st.subheader("Limit checks")
+        table = pd.DataFrame(checks)
+        table["actual"] = table["actual"].astype(str)
+        table["limit"] = table["limit"].astype(str)
+        st.dataframe(table, hide_index=True)
     if result['balloon_before_resale']:
         st.warning("The purchase balloon is due before resale. The cash-flow table assumes you fund it on time; refinancing is not assumed.")
     st.write(f"Purchase payment: ${result['regular_purchase_payment']:,.2f}/month · Note payoff at resale: ${result['purchase_payoff_at_resale']:,.2f} · Total deal costs: ${result['total_cost']:,.2f}")
@@ -61,7 +102,7 @@ if submitted:
                             ("Both changes", replace(deal, sale_price=resale * .9, resale_month=min(600, int(months) + 6)))]:
         r = scenario.analyze()
         rows.append({"Scenario": label, "Net profit ($)": r['profit'], "Net project ROI (%)": round(r['project_roi_pct'], 2),
-                     "Peak cash needed ($)": r['peak_funding'], "ROI target met": r['project_roi_pct'] >= target})
+                     "Peak cash needed ($)": r['peak_funding'], "All enabled limits met": all(c["passed"] for c in limits.check(scenario, r, state=state, property_type=property_type))})
     st.subheader("Downside scenarios")
     st.dataframe(pd.DataFrame(rows), hide_index=True)
     st.subheader("Monthly cash flow")
